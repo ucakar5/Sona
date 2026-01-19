@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             SonaTheme (){
-                AppNavigation()
+                MainAppContainer()
             }
         }
     }

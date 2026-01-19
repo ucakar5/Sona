@@ -113,7 +113,7 @@ fun BottomNavBar(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val pageNames = listOf("Home", "Search", "Library", "Settings")
+                val pageNames = listOf("Home", "Search", "Library", "Profile")
                 val imageList = listOf(
                     /*Icons.Default.Home,
                     Icons.Default.Search,
@@ -122,7 +122,7 @@ fun BottomNavBar(
                     R.drawable.aic_home,
                     R.drawable.aic_search,
                     R.drawable.aic_library,
-                    R.drawable.aic_settings,
+                    R.drawable.aic_profile,
 
                 )
                 pageNames.forEachIndexed { index, name ->

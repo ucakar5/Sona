@@ -7,6 +7,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,22 +76,32 @@ import androidx.constraintlayout.compose.MotionLayout
 import androidx.constraintlayout.compose.MotionScene
 import com.example.sona.IBMPlexSans
 import com.example.sona.R
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicPlayer(
+    scaffoldState: BottomSheetScaffoldState,
+    selectedTab: String,
+    onTabSelected: (String) -> Unit,
+    sheetMode: String,
+    onSheetMode: (String) -> Unit,
     statusPadding: Dp,
     onSheetProgressChange: (Float) -> Unit = {},
 
 ) {
-    val scaffoldState = rememberBottomSheetScaffoldState()
+    val scope = rememberCoroutineScope()
+
+    //val scaffoldState = rememberBottomSheetScaffoldState()
     var sheetHeight by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
     var progress by remember { mutableFloatStateOf(0f) }
 
     val navPadding = with(LocalDensity.current) {
         WindowInsets.navigationBars.getBottom(this).toDp()}
+
+    val interactionSource = remember { MutableInteractionSource() }
 
     LaunchedEffect(Unit) {
         snapshotFlow {
@@ -116,9 +128,26 @@ fun MusicPlayer(
         }
     }
 
-    BottomSheetScaffold(
+    val expandSheet: () -> Unit = {
+        scope.launch {
+            if (scaffoldState.bottomSheetState.currentValue == SheetValue.PartiallyExpanded) {
+                scaffoldState.bottomSheetState.expand()
+            }
+        }
+    }
 
-        topBar = { TopNavBar(statusPadding) },
+    val collapseSheet: () -> Unit = {
+        scope.launch {
+            if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+                scaffoldState.bottomSheetState.partialExpand()
+            }
+        }
+    }
+
+
+
+    BottomSheetScaffold(
+        topBar = { TopNavBar(selectedTab, onTabSelected, statusPadding) },
         scaffoldState = scaffoldState,
         sheetContent = {
             Box(
@@ -130,8 +159,8 @@ fun MusicPlayer(
                     //.padding(bottom = navPadding)
             ) {
 
-                MiniPlayer(progress)
-                FullPlayer(progress, statusPadding, navPadding)
+                MiniPlayer(progress, onExpand = expandSheet)
+                FullPlayer(progress, statusPadding, navPadding, onCollapse = collapseSheet)
 
                 //Box(modifier = Modifier.height(5000.dp))
             }
@@ -146,14 +175,14 @@ fun MusicPlayer(
 
             //.windowInsetsPadding(WindowInsets.navigationBars),
 
-        sheetContainerColor = Color(0xFF232323),
+        sheetContainerColor = Color(0xFF181818),
         sheetContentColor = Color.White,
     ) {}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FullPlayer(progress: Float, statusPadding: Dp, navPadding: Dp) {
+fun FullPlayer(progress: Float, statusPadding: Dp, navPadding: Dp, onCollapse: () -> Unit) {
     Column(
         modifier = Modifier
             .padding(top = 12.dp + statusPadding)
@@ -176,7 +205,13 @@ fun FullPlayer(progress: Float, statusPadding: Dp, navPadding: Dp) {
                 contentDescription = null,
                 modifier = Modifier
 
-                    .size(25.dp),
+                    .size(25.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        onCollapse()
+                    },
                 //.weight(1f),
                 alpha = 1f,
                 colorFilter = ColorFilter.tint(Color.White)
@@ -213,16 +248,16 @@ fun FullPlayer(progress: Float, statusPadding: Dp, navPadding: Dp) {
                 text = "Feel So Good",
                 fontFamily = IBMPlexSans,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 25.sp,
+                fontSize = 26.sp,
                 color = Color.White,
             )
 
             Text(
                 //modifier = Modifier.padding(horizontal = 8.dp),
                 text = "Lucas & Steve",
-                fontSize = 19.sp,
+                fontSize = 18.sp,
                 fontFamily = IBMPlexSans,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 color = Color.Gray,
             )
         }
@@ -261,7 +296,7 @@ fun PlayRow() {
                     painter = painterResource(i),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(21.dp),
+                        .size(24.dp),
                     alpha = 1f,
                     colorFilter = ColorFilter.tint(Color.White)
                 )
@@ -272,7 +307,7 @@ fun PlayRow() {
                     modifier = Modifier
                         .width(64.dp)
                         .height(64.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(5.dp))
                         .background(Color.White)
 
                 ) {
@@ -281,7 +316,7 @@ fun PlayRow() {
                         contentDescription = null,
                         modifier = Modifier
                             .padding(vertical = 16.dp)
-                            .size(28.dp),
+                            .size(29.dp),
                         //.weight(1f),
                         alpha = 1f,
                         colorFilter = ColorFilter.tint(Color(0xFF121212))
@@ -371,140 +406,64 @@ fun ProgressBar(
 }
 
 @Composable
-fun MiniPlayer(progress: Float) {
-    Row (modifier = Modifier
+fun MiniPlayer(progress: Float, onExpand: () -> Unit) {
+    Row (
+        modifier = Modifier
         .graphicsLayer(
             alpha = 1f - progress*6
         )
+        .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ){
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceAround,
-            modifier = Modifier.padding(all = 8.dp)
-
+        Row(
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                onExpand()
+            }
+            .weight(1f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
                 painter = painterResource(R.drawable.artcover),
                 contentDescription = null,
                 modifier = Modifier
+                    .padding(horizontal = 8.dp)
                     .size(50.dp)
                     .clip(RoundedCornerShape(2.dp)),
                 alpha = 1f,
-
             )
-        }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(vertical = 14.dp, horizontal = 6.dp)
-        ) {
-            Text(
-                text = "Feel So Good",
-                fontFamily = IBMPlexSans,
-                fontWeight = FontWeight.Medium,
-                fontSize = 15.sp,
-                lineHeight = 2.sp,
-            )
-            Text(
-                text = "Lucas & Steve",
-                fontFamily = IBMPlexSans,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.Gray,
-                lineHeight = 2.sp,
-            )
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceAround
-        ) {
-            Image(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
+            Column(
                 modifier = Modifier
-                    .padding(all = 16.dp)
-                    .size(34.dp),
-                alpha = 1f,
-                colorFilter = ColorFilter.tint(Color.White)
-            )
+                    .weight(1f)
+                    .padding(vertical = 14.dp, horizontal = 6.dp)
+            ) {
+                Text(
+                    text = "Feel So Good",
+                    fontFamily = IBMPlexSans,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                    lineHeight = 2.sp,
+                )
+                Text(
+                    text = "Lucas & Steve",
+                    fontFamily = IBMPlexSans,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Gray,
+                    lineHeight = 2.sp,
+                )
+            }
         }
-    }
-}
-
-
-/*
-@Composable
-fun TestFunc(modifier: Modifier = Modifier) {
-    Column {
-        var progress by remember {
-            mutableStateOf(0f)
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-        Slider(
-            value = progress,
-            onValueChange = {
-                progress = it
-            },
-            modifier = Modifier.padding(horizontal = 32.dp)
-        )
-    }
-}
-
-
-
-@OptIn(ExperimentalMotionApi::class)
-@Composable
-fun ProfileHeader(progress: Float) {
-    val context = LocalContext.current
-    val motionScene = remember {
-        context.resources
-            .openRawResource(R.raw.motion_scene)
-            .readBytes()
-            .decodeToString()
-    }
-    MotionLayout(
-        motionScene = MotionScene(content = motionScene),
-        progress = progress,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        val properties = customProperties(id = "profile_pic")
-        /*Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.DarkGray)
-                .layoutId("box")
-        )*/
         Image(
-            imageVector = Icons.Default.AccountBox,
+            painter = painterResource(R.drawable.aic_play),
             contentDescription = null,
             modifier = Modifier
-                //.size(64.dp)
-                .layoutId("profile_pic"),
+                .padding(all = 12.dp)
+                .size(22.dp),
             alpha = 1f,
-            //colorFilter = ColorFilter.tint(Color.White),
+            colorFilter = ColorFilter.tint(Color.White)
         )
-        Column(
-            modifier = Modifier
-                //.weight(1f)
-                .layoutId("username")
-                //.padding(vertical = 14.dp),
-
-        ) {
-            Text(
-                modifier = Modifier.padding(horizontal = 8.dp),
-                text = "Take Me Away",
-                fontWeight = FontWeight.Light,
-                fontSize = 14.sp,
-                lineHeight = 16.sp,
-            )
-            Text(
-                modifier = Modifier.padding(horizontal = 8.dp),
-                text = "Andromedik",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Light,
-                color = Color.Gray,
-            )
-        }
     }
-}*/
+}
